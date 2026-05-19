@@ -4,18 +4,9 @@ kind: Kustomization
 resources:
 - ../../base
 
-patches:
-  - target:
-      kind: Deployment
-      name: demo-backend-deployment
-    patch: |-
-      - op: replace
-        path: /metadata/name
-        value: dev-backend-deployment
-  - target:
-      kind: Service
-      name: demo-backend-service
-    patch: |-
-      - op: replace
-        path: /metadata/name
-        value: dev-backend-service
+nameprefix: dev-
+
+configMapGenerator:
+  - name: demo-backend-config
+    literals:
+      - ENV=dev

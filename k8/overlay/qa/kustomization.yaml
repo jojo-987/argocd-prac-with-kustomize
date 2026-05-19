@@ -4,17 +4,18 @@ kind: Kustomization
 resources:
 - ../../base
 
+nameprefix: qa-
+
+configMapGenerator:
+  - name: demo-backend-config
+    literals:
+      - ENV=qa
+
 patches:
   - target:
       kind: Deployment
       name: demo-backend-deployment
     patch: |-
-      - op: replace
-        path: /metadata/name
-        value: qa-backend-deployment
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0
-        value: qa
       - op: replace
         path: /spec/template/spec/containers/0/livenessProbe/httpGet/port
         value: 5001
@@ -26,9 +27,6 @@ patches:
       kind: Service
       name: demo-backend-service
     patch: |-
-      - op: replace
-        path: /metadata/name
-        value: qa-backend-service
       - op: replace
         path: /spec/ports/0 
         value:

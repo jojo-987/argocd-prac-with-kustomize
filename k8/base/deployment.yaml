@@ -17,9 +17,9 @@ spec:
       containers:
       - name: demo-backend
         image: krishp234/demo-backend:v1
-        env:
-          - name: ENV
-            value: qa
+        envFrom:
+          - configMapRef:
+              name: demo-backend-config
         ports:
         - containerPort: 5000
         livenessProbe:
