@@ -10,3 +10,12 @@ configMapGenerator:
   - name: demo-backend-config
     literals:
       - ENV=dev
+
+patches: 
+  - target: 
+      kind: Deployment
+      name: demo-backend-deployment
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: krishp234/demo-backend:v2
