@@ -9,7 +9,7 @@ const environment = process.env.ENV || 'dev';
 const config = {
     dev: {
         port: 5000,
-        data: { message: "Welcome to the DEVELOPMENT environment", debugMode: true }
+        data: { message: "Welcome to the DEVELOPMENT environment version 2", debugMode: true }
     },
     qa: {
         port: 5001,
