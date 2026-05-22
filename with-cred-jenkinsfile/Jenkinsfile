@@ -1,0 +1,56 @@
+pipeline {
+    agent { label 'kp' }
+    
+    stages {
+        stage("Initialize & Secure Build") {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'secret-docker-user', variable: 'SECURE_USER'),
+                    string(credentialsId: 'secret-image-name', variable: 'SECURE_IMAGE'),
+                    usernamePassword(credentialsId: 'docker-hub-credentials', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')
+                ]) {
+                    // Everything requiring these variables must execute inside this block
+                    script {
+                        def newVersion = "v3.${BUILD_NUMBER}"
+                        def registryImage = "${SECURE_USER}/${SECURE_IMAGE}:${newVersion}"
+                        
+                        echo "Starting secure build workflow..."
+                        
+                        // 1. Checkout
+                        git branch: 'main', credentialsId: 'git-creds', url: 'https://github.com'
+                        
+                        // 2. Dependencies
+                        dir('server') {
+                            bat 'npm install'
+                        }
+                        
+                        // 3. Trivy FS Scan
+                        bat 'trivy fs --exit-code 1 --severity HIGH,CRITICAL ./server'
+                        
+                        // 4. Build Docker Image
+                        bat "docker build ./server -t ${SECURE_IMAGE}:${newVersion}"
+                        
+                        // 5. Tag Image
+                        bat "docker tag ${SECURE_IMAGE}:${newVersion} ${registryImage}"
+                        
+                        // 6. Login & Push securely
+                        bat "docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%"
+                        bat "docker push ${registryImage}"
+                        
+                        // 7. Trivy Image Scan
+                        bat "trivy image --exit-code 1 --severity HIGH,CRITICAL ${registryImage}"
+                        
+                        // 8. Update GitOps config safely
+                        dir('deployment') {
+                            bat "kustomize edit set image secret-placeholder=${registryImage}"
+                        }
+                        
+                        // 9. Cleanup local engine storage
+                        bat "docker rmi ${registryImage} || exit 0"
+                    }
+                }
+            }
+        }
+    }
+}
+
