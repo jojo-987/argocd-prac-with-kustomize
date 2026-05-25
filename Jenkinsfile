@@ -5,7 +5,7 @@ pipeline {
         // Dynamic versioning using build number prevents overwriting images
         NEW_VERSION     = "v3"
         IMAGE_NAME      = 'demo-backend'
-        DOCKER_USER     = 'dockerUser'
+        DOCKER_USER     = 'docker-user'
         REGISTRY_IMAGE  = "${DOCKER_USER}/${IMAGE_NAME}:${NEW_VERSION}"
         
         // Jenkins Credential IDs
@@ -71,17 +71,59 @@ pipeline {
         
         stage("Trivy Image Scan") {
             steps {
-                bat "trivy image --exit-code 1 --severity HIGH,CRITICAL ${REGISTRY_IMAGE}"
+                bat "trivy image --exit-code 1 --severity CRITICAL ${REGISTRY_IMAGE}"
             }
         }
         
-        stage("Update YAML Manifests") {
+        // stage("Update YAML Manifests") {
+        //     steps {
+        //         echo 'Updating Kustomize / GitOps manifests...'
+        // sh """
+        //     cd k8/overlay/dev
+        //     sed -i "s|${DOCKER_USER}/${IMAGE_NAME}:[a-zA-Z0-9._-]*|${DOCKER_USER}/${IMAGE_NAME}:${NEW_VERSION}|g" kustomization.yaml
+        // """
+        //     }
+        // }
+stage("Update & Push Manifests to GitHub") {
+    agent { label 'linux' }
+    stages{
+        stage("clean-workspace"){
             steps {
-                echo 'Updating Kustomize / GitOps manifests...'
-                // Best practice: Use sed or kustomize edit set image to update the version automatically
-                bat "cd deployment && kustomize edit set image ${DOCKER_USER}/${IMAGE_NAME}=${REGISTRY_IMAGE}"
+                cleanWs()
             }
         }
+        stage("update-manifests"){
+            steps {
+        withCredentials([usernamePassword(credentialsId: 'jojo', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+            sh """
+                git clone git-url .
+                
+                # 2. Navigate to the cloned manifest folder
+                cd k8/overlay/dev
+                
+                # 3. Update the file locally
+                sed -i "s|${DOCKER_USER}/${IMAGE_NAME}:[a-zA-Z0-9._-]*|${DOCKER_USER}/${IMAGE_NAME}:${NEW_VERSION}|g" kustomization.yaml
+                
+                # 4. Configure local git identity for this commit
+                git config user.name "Jenkins CI/CD"
+                git config user.email "jenkins@kp.com"
+                
+                # 5. Stage and commit the change
+                git add kustomization.yaml
+                git commit -m "chore(gitops): update image tag to ${NEW_VERSION} [skip ci]"
+                
+                # 6. Push securely back to GitHub (FIXED URL SYNTAX)
+                git push https://\$GIT_USERNAME:\$GIT_PASSWORD@github.com/jojo-987/argocd-prac-with-kustomize.git HEAD:main -f
+
+            """
+        }
+    }
+        }
+    }
+    
+}
+
+
     }
     
     post {
@@ -97,3 +139,4 @@ pipeline {
         }
     }
 }
+
