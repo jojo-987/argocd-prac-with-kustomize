@@ -31,14 +31,15 @@ pipeline {
                 // bat 'sonar-scanner' 
             }
         }
-        
-        stage("Install Dependencies") {
-            steps {
-                dir('server') {
-                    bat 'npm install'
-                }
-            }
-        }
+
+        // redundant step
+        // stage("Install Dependencies") {
+        //   steps {
+        //        dir('server') {
+        //            bat 'npm install'
+        //        }
+        //    }
+        // }
         
         stage("Trivy FS Scan") {
             steps {
