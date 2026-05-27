@@ -64,8 +64,8 @@ pipeline {
             steps {
                 // Securely binds credentials to prevent password exposure in console logs
                 withCredentials([usernamePassword(credentialsId: "${env.DOCKER_CRED_ID}", passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
-                    bat "docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%"
-                    bat "docker push ${REGISTRY_IMAGE}"
+                    bat 'docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%'
+                    bat 'docker push ${REGISTRY_IMAGE}'
                 }
             }
         }
@@ -94,32 +94,28 @@ stage("Update & Push Manifests to GitHub") {
             }
         }
         stage("update-manifests"){
-            steps {
+    steps {
         withCredentials([usernamePassword(credentialsId: 'jojo', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-            sh """
-                git clone git-url .
-                
-                # 2. Navigate to the cloned manifest folder
+            sh '''
+                git clone https://github.com/jojo-987/argocd-prac-with-kustomize.git .
                 cd k8/overlay/dev
                 
-                # 3. Update the file locally
-                sed -i "s|${DOCKER_USER}/${IMAGE_NAME}:[a-zA-Z0-9._-]*|${DOCKER_USER}/${IMAGE_NAME}:${NEW_VERSION}|g" kustomization.yaml
+                # These use Groovy variables, so we temporarily close and reopen the single quotes to let Groovy inject them safely
+                sed -i "s|'"${DOCKER_USER}"'/'"${IMAGE_NAME}"':[a-zA-Z0-9._-]*|'"${DOCKER_USER}"'/'"${IMAGE_NAME}"':'"${NEW_VERSION}"'|g" kustomization.yaml
                 
-                # 4. Configure local git identity for this commit
                 git config user.name "Jenkins CI/CD"
                 git config user.email "jenkins@kp.com"
-                
-                # 5. Stage and commit the change
                 git add kustomization.yaml
-                git commit -m "chore(gitops): update image tag to ${NEW_VERSION} [skip ci]"
+                git commit -m "chore(gitops): update image tag [skip ci]"
                 
-                # 6. Push securely back to GitHub (FIXED URL SYNTAX)
-                git push https://\$GIT_USERNAME:\$GIT_PASSWORD@github.com/jojo-987/argocd-prac-with-kustomize.git HEAD:main -f
-
-            """
+                # Secure push: Linux shell handles these variables privately
+                git push https://$GIT_USERNAME:$GIT_PASSWORD@github.com/jojo-987/argocd-prac-with-kustomize.git HEAD:main -f
+            '''
         }
     }
-        }
+}
+
+       
     }
     
 }
